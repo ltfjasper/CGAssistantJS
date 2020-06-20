@@ -54,8 +54,11 @@ var task = cga.task.Task('十周年戒指', [
 						cga.ClickNPCDialog(4, 0);
 						cga.AsyncWaitNPCDialog(()=>{
 							cga.ClickNPCDialog(1, 0);
-							cga.AsyncWaitMovement({map:'追忆之路', delay:1000, timeout:5000}, ()=>{
-
+							cga.AsyncWaitMovement({map:'追忆之路', delay:1000, timeout:5000}, (err)=>{
+								if(err){//不知道什么原因没进去，重试一次
+									cb2('restart stage');
+									return;
+								}
 								if(cga.isTeamLeader)
 								{
 									cga.walkList([
@@ -84,7 +87,12 @@ var task = cga.task.Task('十周年戒指', [
 	intro: '2.依次挑战追忆之路内的5位BOSS，分别是：露比、法尔肯、帕布提斯马&凯法、犹大、海贼头目、帕鲁凯斯的亡灵（第一形态）',
 	workFunc: function(cb2){
 		
-		var retry = ()=>{
+		var retry = (err)=>{
+			if(err){
+				cb2(err);
+				return;
+			}
+			
 			console.log('拿戒指')
 			cga.cleanInventory(1, ()=>{
 				cga.turnTo(15, 4);
@@ -105,7 +113,13 @@ var task = cga.task.Task('十周年戒指', [
 		}
 		
 		var wait = ()=>{
-			cga.waitForLocation({mapname : '追忆之路', pos : [15, 4], leaveteam : true, walkto : [15, 5]}, retry);
+			cga.waitForLocation({
+				mapname : '追忆之路', 
+				pos : [15, 4], 
+				leaveteam : true, 
+				walkto : [15, 5], 
+				desired_teamplayers : cga.getTeamPlayers()
+			}, retry);
 		}
 
 		var go = ()=>{
