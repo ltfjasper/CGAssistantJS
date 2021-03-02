@@ -8,11 +8,6 @@ var craft_target = null;
 var healObject = require('./../公共模块/治疗自己');
 var checkSettle = require('./../公共模块/登出检查定居地');
 
-//必须定居哥拉尔
-cga.travel.gelaer.isSettled = true;
-cga.travel.falan.isSettled = false;
-cga.travel.newisland.isSettled = false;
-
 const io = require('socket.io')();
 
 io.on('connection', (socket) => { 

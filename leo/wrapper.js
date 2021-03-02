@@ -59,6 +59,7 @@ module.exports = new Promise(resolve => {
 	const cga = require('../cgaapi')(() => setTimeout(() => resolve(cga), 0));
 }).then(cga => {
 	cga.emogua = {};
+	cga.emogua.moveTimeout = 300;
 	cga.emogua.UnitFlags = {
 		NpcEntry: 4096, // npc 或者 随机入口
 		Item: 1024,
@@ -222,7 +223,7 @@ module.exports = new Promise(resolve => {
 		else cga.LogBack();
 		return cga.emogua.delay(2000).then(() => cga.emogua.waitAfterBattle());
 	}).then(() => {
-		if (['法兰城','艾尔莎岛'].indexOf(cga.GetMapName()) < 0) {
+		if (['法兰城','艾尔莎岛','阿凯鲁法村','哥拉尔镇'].indexOf(cga.GetMapName()) < 0) {
 			return cga.emogua.logBack(times + 1);
 		}
 	}).catch(e => {
@@ -897,12 +898,15 @@ module.exports = new Promise(resolve => {
 	 * 返回
 	 *     true 银行已没有指定物品
 	 */
-	cga.emogua.getFromBank = (filter) => {
-		const bankList = cga.GetBankItemsInfo().filter(e => {
+	cga.emogua.getFromBank = (filter,count = 100) => {
+		let bankList = cga.GetBankItemsInfo().filter(e => {
 			if (typeof filter == 'string') return e.name == filter || e.itemid == filter;
 			else if (typeof filter == 'function') return filter(e);
 			else return !filter;
 		});
+		if(bankList.length>count){
+			bankList = bankList.slice(0,count);
+		}
 		const items = cga.getInventoryItems();
 		let bankListIndex = 0;
 		let result = Promise.resolve();
@@ -1062,7 +1066,7 @@ module.exports = new Promise(resolve => {
 			} else {
 				resolve({success: false});
 			}
-		}, 0), 15000);
+		}, 0), 10000);
 	}).then(result => cga.emogua.delay(300).then(() => result));
 	cga.emogua.getNearEntry = (target) => {
 		return cga.getMapObjects().filter(e => (e.cell === 3 || e.cell === 10) && !(e.x == target.x && e.y == target.y)).sort((a, b) => {
@@ -1182,7 +1186,7 @@ module.exports = new Promise(resolve => {
 						if (stopEncounter) resolve();
 						else if (cga.isInNormalState()) {
 							cga.ForceMove(direction, false);
-							setTimeout(() => move((direction + 4) % 8), 100);
+							setTimeout(() => move((direction + 4) % 8), cga.emogua.moveTimeout||300);
 						} else afterBattle();
 					} catch(e) {
 						console.log('遇敌错误', e);
@@ -1365,7 +1369,7 @@ module.exports = new Promise(resolve => {
 
 		const sellList = cga.getInventoryItems().filter(filter).map(e => {
 			let sellCount = (e.count < 1) ? 1 : e.count;
-			if ([30, 34, 35].indexOf(e.type) >= 0) {
+			if ([29, 30, 34, 35].indexOf(e.type) >= 0) {
 				sellCount = parseInt(e.count / 20);
 			} else if ([43, 23].indexOf(e.type) >= 0) {
 				sellCount = parseInt(e.count / 3);
@@ -1404,9 +1408,15 @@ module.exports = new Promise(resolve => {
 	let craftedOnce = false;
 	cga.emogua.craft = (name) => {
 		const requireInfo = cga.getItemCraftInfo(name);
+		//console.log(requireInfo);
 		if (requireInfo) {
 			const findJewel = ['制药', '料理'].indexOf(requireInfo.skill.name) < 0;
 			const materials = requireInfo.craft.materials;
+			const skillIndex = requireInfo.craft.level;
+			const level = requireInfo.skill.index;
+			const subSkillInfo = cga.GetSubSkillInfo(skillIndex, level);
+			//const needMp = level * 11;
+			const needMp = subSkillInfo.cost;
 			return cga.emogua.recursion(() => {
 				const items = cga.getInventoryItems();
 				materials.forEach(material => {
@@ -1417,6 +1427,9 @@ module.exports = new Promise(resolve => {
 				if (findJewel) {
 					const jewel = items.find(i => i.type == 38 && i.assessed);
 					if (jewel) jewelPosition = jewel.pos;
+				}
+				if(cga.GetPlayerInfo.mp < needMp){
+					return Promise.reject();
 				}
 				if (materials.filter(m => !m.position).length == 0) {
 					const positions = [0,0,0,0,0,0];
@@ -1471,7 +1484,7 @@ module.exports = new Promise(resolve => {
 				result = result.then(() => cga.emogua.recursion(() => {
 					cga.StartWork(skill.index, 0);
 					if (cga.GetPlayerInfo().mp >= (item.level * 10) && cga.AssessItem(skill.index, item.pos)) {
-						return cga.emogua.waitWorkResult(assessedOnce ? 2000 : 900000).then(r => {
+						return cga.emogua.waitWorkResult(assessedOnce ? 1000 : 900000).then(r => {
 							if (r.success) {
 								assessedOnce = true;
 								return Promise.reject();
@@ -1479,10 +1492,10 @@ module.exports = new Promise(resolve => {
 						});
 					}
 					return Promise.reject();
-				})).then(() => cga.emogua.delay(200));
+				})).then(() => cga.emogua.delay(20));
 			});
 		}
-		return result.then(() => cga.emogua.delay(500));
+		return result.then(() => cga.emogua.delay(50));
 	};
 	let repairedOnce = false;
 	cga.emogua.repairAll = () => {
@@ -1531,7 +1544,7 @@ module.exports = new Promise(resolve => {
 	cga.emogua.healTeammate = () => new Promise((resolve, reject) => {
 		const skill = cga.GetSkillsInfo().find(s => s.name == '治疗');
 		const requireMp = 25 + skill.lv * 5;
-		const needHealTeammate = cga.getTeamPlayers().find(p => p.injury > 0);
+		const needHealTeammate = cga.getTeamPlayers().find(p => (p.injury == 1 ||p.injury == 3 ));
 		if (needHealTeammate && skill && cga.GetPlayerInfo().mp >= requireMp) {
 			cga.StartWork(skill.index, skill.lv-1);
 			cga.AsyncWaitPlayerMenu((error, players) => setTimeout(() => {
@@ -2176,6 +2189,8 @@ module.exports = new Promise(resolve => {
 		);
 		context.enemies.front = context.enemies.filter(e => context.isFront(e.pos));
 		context.enemies.back = context.enemies.filter(e => !context.isFront(e.pos));
+		//1级宠信息
+		context.enemies.lv1 = context.enemies.filter(e => e.level == 1);
 		context.teammates = context.units.filter(e =>
 			(context.player_pos > 9 && e.pos > 9) ||
 			(context.player_pos <= 9 && e.pos <= 9)
@@ -2283,10 +2298,10 @@ module.exports = new Promise(resolve => {
 							isBossBattle = (cga.GetBGMIndex() == 14);
 							delay = AutoBattleFirstRoundDelay;
 							if (isBossBattle) {
-								console.log('BOSS战斗');
+								//console.log('BOSS战斗');
 							}
 							if (context.round_count == 1) { // 被偷袭
-								console.log('被偷袭');
+								//console.log('被偷袭');
 								//delay += AutoBattleFirstRoundDelay;
 							}
 						} else if (lastRound === context.round_count) {
@@ -2296,6 +2311,7 @@ module.exports = new Promise(resolve => {
 						if (delay > 0) setTimeout(() => battle(state, context), delay);
 						else battle(state, context);
 						lastRound = context.round_count;
+						context.isFirstBattleAction = isFirstBattleAction;
 						//console.log(context);
 					}
 					isFirstBattleAction = false;
@@ -2326,7 +2342,7 @@ module.exports = new Promise(resolve => {
 			}
 			BattleStrategyCache.push(strategies);
 		} else {
-			console.log('取消脚本战斗');
+			//console.log('取消脚本战斗');
 			playerStrategies = [];
 			player2Strategies = [];
 			petStrategies = [];
@@ -2334,6 +2350,7 @@ module.exports = new Promise(resolve => {
 		return Promise.resolve();
 	};
 	const getPileMax = (item) => {
+		if (item.name.indexOf('谜语箱') >= 0) return 0;
 		if (item.name.endsWith('的水晶碎片')) return 999;
 		if (['长老之证'].indexOf(item.name) >= 0) return 3;
 		if (['黄蜂的蜜'].indexOf(item.name) >= 0) return 6;
@@ -2349,7 +2366,7 @@ module.exports = new Promise(resolve => {
 			return 3;
 		}
 		if (item.type == 31) return 20; // 布
-		if ([26,32,34,35].indexOf(item.type) >= 0) { // 狩猎材料
+		if ([32,34,35].indexOf(item.type) >= 0) { // 狩猎材料
 			if (item.name.endsWith('元素碎片')) return 4;
 			if (item.name.startsWith('隐秘的徽记')) return 20;
 			return 40;

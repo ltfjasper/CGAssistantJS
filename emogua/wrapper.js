@@ -64,6 +64,7 @@ module.exports = new Promise(resolve => {
 		Item: 1024,
 		Player: 256
 	};
+
 	cga.emogua.shuffle = (arr) => {
 		let i = arr.length;
 		while (i) {
@@ -1182,7 +1183,7 @@ module.exports = new Promise(resolve => {
 						if (stopEncounter) resolve();
 						else if (cga.isInNormalState()) {
 							cga.ForceMove(direction, false);
-							setTimeout(() => move((direction + 4) % 8), 150);
+							setTimeout(() => move((direction + 4) % 8), 300);
 						} else afterBattle();
 					} catch(e) {
 						console.log('遇敌错误', e);
@@ -1300,11 +1301,15 @@ module.exports = new Promise(resolve => {
 			);
 		});
 	};
-	cga.emogua.joinTeamBlock = (x, y, name) => Promise.resolve().then(() => {
+	cga.emogua.joinTeamBlock = (x, y, name, interruptor) => Promise.resolve().then(() => {
 		console.log(`尝试加入(${name})的队伍...`);
+		if (typeof interruptor == 'function' && interruptor()) {
+			console.log(`组队中断`);
+			return;
+		}
 		return cga.emogua.joinTeam(x, y, name).catch(
 			() => cga.emogua.delay(3000).then(
-				() => cga.emogua.joinTeamBlock(x, y, name)
+				() => cga.emogua.joinTeamBlock(x, y, name, interruptor)
 			)
 		);
 	});
@@ -1685,7 +1690,7 @@ module.exports = new Promise(resolve => {
 			} else return Promise.resolve();
 		};
 		const repair = () => {
-			const repairFlag = (options && typeof options.repairFlag == 'number') ? options.repairFlag : 1;
+			const repairFlag = (options && typeof options.repairFlag == 'number') ? options.repairFlag : 0;
 			const needRepairChecker = (eq) => {
 				if (eq.type >= 0 && eq.type <= 14 && eq.level <= 10) {
 					const durability = cga.emogua.getDurability(eq);
@@ -1785,7 +1790,7 @@ module.exports = new Promise(resolve => {
 						doctor = units.find(u => (u.flags & cga.emogua.UnitFlags.Player) && u.unit_name == options.doctorName);
 					} else {
 						doctor = units.find(
-							u => (u.flags & cga.emogua.UnitFlags.Player) && (
+							u => (u.flags & cga.emogua.UnitFlags.Player) && ( ((u.injury & 2) == 2 && u.icon == 13) ||
 								u.nick_name.indexOf('治疗') >= 0 || u.nick_name.indexOf('医') >= 0 || u.title_name.indexOf('医') >= 0
 							)
 						);

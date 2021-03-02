@@ -19,6 +19,7 @@ require('./common').then(cga => {
 	leo.log('当前人物职业：【'+profession.name+'】，称号：【'+title+'】');
 	leo.log('设置刷【'+target+'】次后停止');
 	leo.log('请不要勾选CGA面板的自动战斗，否则优先级将高于此脚本内的设置');
+	leo.panel.autoBattle(false);//关闭CGA面板的自动战斗
 	var petIndex = playerinfo.petid;
 	if(petIndex!=-1){
 		//leo.log('脚本结束：请先设置不带宠，否则可能导致掉线');

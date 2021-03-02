@@ -2,16 +2,17 @@ require('./common').then(cga => {
     leo.baseInfoPrint();
     leo.monitor.config.keepAlive = false;   //关闭防掉线
     leo.logStatus = false;
-    var teamLeader = '队长名称'; //队长名称
+    var teamLeader = '此处填队长名称'; //队长名称
     var teamPlayerCount = 5; //队伍人数
+    var usingpunchclock = false; //是否打卡
     var protect = {
         minHp: 500,
         minMp: 100,
         minPetHp: 150,
-        minPetMp: 0,
+        minPetMp: 100,
         maxItemNumber: 19,
         minTeamNumber: 5,
-        normalNurse: false
+        normalNurse: true
     };
     var teammates = [];
     var isPrepare = false; //招魂、治疗、补血、卖石
@@ -21,7 +22,7 @@ require('./common').then(cga => {
         rechargeFlag: 1,
         repairFlag: -1,
         crystalName: '水火的水晶（5：5）',
-        doctorName: '医道之殇222'
+        doctorName: '医道之殇'
     };
     var meetingPointTeamLeader = [
         [97, 85],
@@ -43,7 +44,7 @@ require('./common').then(cga => {
         [99, 84],
         [100, 84]
     ];
-    leo.log('红叶の黑一脚本，位置点【' + meetingPoint + '】，推荐100~125级使用，启动~');
+    leo.log('红叶の黑一脚本，【' + teamLeader + '】的'+teamPlayerCount+'人队伍，推荐100~125级使用，启动~');
     cga.EnableFlags(cga.ENABLE_FLAG_TEAMCHAT, true); //开启队聊
     cga.EnableFlags(cga.ENABLE_FLAG_JOINTEAM, true); //开启组队
     cga.EnableFlags(cga.ENABLE_FLAG_CARD, false); //关闭名片
@@ -54,6 +55,9 @@ require('./common').then(cga => {
     if (playerName == teamLeader) {
         isTeamLeader = true;
         protect.minMp = 350; //队长是传教，回城魔值至少要大于等于一次祈祷的魔
+        leo.log('我是队长，预设队伍人数【'+teamPlayerCount+'】');
+    }else{
+        leo.log('我是队员，队长是【'+teamLeader+'】');
     }
 
     leo.todo().then(() => {
@@ -76,6 +80,33 @@ require('./common').then(cga => {
             .then(() => leo.checkHealth(prepareOptions.doctorName))
             .then(() => leo.checkCrystal(prepareOptions.crystalName))
             .then(() => {
+                //检查是否满魔币
+                var playerinfo = cga.GetPlayerInfo();
+                if (playerinfo.gold >= 990000) {
+                    leo.log('钱包快满了：' + playerinfo.gold + '去银行存钱');
+                    return leo.goto(n => n.falan.bank)
+                    .then(()=>leo.turnDir(0))
+                    .then(()=>leo.moveGold(100000,cga.MOVE_GOLD_TOBANK))
+                    .then(()=>leo.moveGold(100000,cga.MOVE_GOLD_TOBANK))
+                    .then(()=>leo.moveGold(100000,cga.MOVE_GOLD_TOBANK))
+                    .then(()=>leo.moveGold(100000,cga.MOVE_GOLD_TOBANK))
+                    .then(()=>leo.moveGold(100000,cga.MOVE_GOLD_TOBANK))
+                    .then(()=>leo.moveGold(100000,cga.MOVE_GOLD_TOBANK))
+                    .then(()=>leo.moveGold(100000,cga.MOVE_GOLD_TOBANK))
+                    .then(()=>leo.moveGold(100000,cga.MOVE_GOLD_TOBANK))
+                    .then(()=>leo.moveGold(100000,cga.MOVE_GOLD_TOBANK))
+                    .then(()=>{
+                        playerinfo = cga.GetPlayerInfo();
+                        if(playerinfo.gold >= 900000){
+                            leo.log('钱包满了，银行也放不下了，脚本结束');
+                            return leo.reject();
+                        }else{
+                            return leo.next();
+                        }
+                    });
+                }
+            })
+            .then(() => {
                 //完成组队
                 var teamplayers = cga.getTeamPlayers();
                 if ((isTeamLeader && teamplayers.length >= protect.minTeamNumber)
@@ -84,7 +115,15 @@ require('./common').then(cga => {
                     return leo.next();
                 } else {
                     console.log(leo.logTime() + '寻找队伍');
-                    return leo.goto(n => n.camp.x).then(() => {
+                    return leo.todo()
+                    .then(()=>{
+                        if(usingpunchclock){
+                            return leo.goto(n => n.castle.clock)
+                            .then(()=>leo.talkNpc(2,leo.talkNpcSelectorYes));
+                        }
+                    })
+                    .then(()=>leo.goto(n => n.camp.x))
+                    .then(() => {
                         if (isTeamLeader) {
                             cga.EnableFlags(cga.ENABLE_FLAG_JOINTEAM, true); //开启组队
                             return leo.autoWalk(meetingPointTeamLeader[meetingPoint - 1]).then(() => leo.buildTeam(teamPlayerCount)).then(() => {

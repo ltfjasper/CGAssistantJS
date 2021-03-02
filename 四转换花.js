@@ -25,6 +25,12 @@ var cga = require('./cgaapi')(function(){
 		'绿花' : 622061,
 		'蓝花' : 622062,
 	},
+	{
+		'红花' : 622059,
+		'黄花' : 622060,
+		'绿花' : 622061,
+		'蓝花' : 622062,
+	}
 	]
 	var	waitFlower = (layerIndex, myItem, waitForItem, waitForPos, cb)=>{
 		
@@ -33,7 +39,7 @@ var cga = require('./cgaapi')(function(){
 		
 		cga.TurnTo(waitForPos[0], waitForPos[1]);
 
-		cga.SayWords('CGA四转脚本等待换花，['+myItem+']交换'+'['+waitForItem+']', 0, 3, 1);
+		var isLeft = myItem > waitForItem;
 		
 		var stuffs = 
 		{
@@ -44,24 +50,10 @@ var cga = require('./cgaapi')(function(){
 				return false;
 			}
 		}
-		
-		var flowerOk = false;
-		
+
 		var waitChat = ()=>{
-			if(flowerOk)
-				return;
-			
 			cga.AsyncWaitChatMsg((err, r)=>{
-				if(flowerOk)
-					return;
-				
-				if(err || !r){
-					cga.SayWords('CGA四转脚本等待换花，['+myItem+']交换'+'['+waitForItem+']。', 0, 3, 1);
-					waitChat();
-					return;
-				}
-				
-				if(r.unitid != -1)
+				if(r && r.unitid != -1)
 				{
 					var findpos = r.msg.indexOf(': CGA四转脚本等待换花');
 					if(findpos > 0)
@@ -73,9 +65,11 @@ var cga = require('./cgaapi')(function(){
 							var playerunit = cga.findPlayerUnit(playername);
 							if(playerunit != null && playerunit.xpos == waitForPos[0] && playerunit.ypos ==waitForPos[1])
 							{
-								cga.requestTrade(playername, (result)=>{
-									if (result.success == true){
-										
+								cga.positiveTrade(playername, stuffs, undefined, result => {
+									if (result && result.success == true){
+										cb(true);
+									} else {
+										waitChat();
 									}
 								});
 								return;
@@ -89,24 +83,23 @@ var cga = require('./cgaapi')(function(){
 		}
 		
 		var waitTrade = ()=>{
-			if(flowerOk)
-				return;
-			
 			cga.waitTrade(stuffs, null, (results)=>{
-				if(results.success == true)
+				if(results && results.success == true)
 				{
-					flowerOk = true;
 					cb(true);
 				}
 				else
 				{
+					cga.SayWords('CGA四转脚本等待换花，['+myItem+']交换'+'['+waitForItem+']', 0, 3, 1);
 					waitTrade();
 				}
 			}, 5000);
 		}
 
-		waitChat();
-		waitTrade();
+		if(isLeft)
+			waitChat();
+		else
+			waitTrade();
 	}
 	
 	var mineArray = [
@@ -403,7 +396,7 @@ var cga = require('./cgaapi')(function(){
 			cga.walkList([
 			[99, 83],
 			], ()=>{
-				waitFlower(3, '花', '花', [101, 83], ()=>{
+				waitFlower(3, '绿花', '黄花', [101, 83], ()=>{
 					cga.SayWords('已换完花，请自行完成剩余部分！', 0, 3, 1);
 					cb(true);				
 				});
@@ -505,7 +498,7 @@ var cga = require('./cgaapi')(function(){
 			cga.walkList([
 			[101, 83],
 			], ()=>{
-				waitFlower(3, '花', '花', [99, 83], ()=>{
+				waitFlower(3, '黄花', '绿花', [99, 83], ()=>{
 					cga.SayWords('已换完花，请自行完成剩余部分！', 0, 3, 1);
 					cb(true);				
 				});

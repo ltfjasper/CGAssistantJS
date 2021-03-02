@@ -7,6 +7,7 @@ var mineObject = null;
 var doneObject = require('./../公共模块/采集后操作');
 var healObject = require('./../公共模块/治疗自己');
 var supplyObject = require('./../公共模块/通用登出回补');
+var checkSettle = require('./../公共模块/登出检查定居地');
 
 var gatherArray = [
 {
@@ -140,7 +141,7 @@ var loop = ()=>{
 	}
 	
 	var playerInfo = cga.GetPlayerInfo();
-	if(playerInfo.mp < playerInfo.maxmp * 0.2 || playerInfo.hp < playerInfo.maxhp * 0.8)
+	if(playerInfo.mp < playerInfo.maxmp * 0.8 || playerInfo.hp < playerInfo.maxhp * 0.8)
 	{
 		if(mineObject.supplyManager)
 			mineObject.supplyManager(loop);
@@ -346,7 +347,9 @@ var thisobj = {
 	execute : ()=>{
 		callSubPlugins('init');
 		mineObject.init();
-		loop();
+		checkSettle.func((err, map)=>{
+			loop();
+		});
 	},
 };
 
